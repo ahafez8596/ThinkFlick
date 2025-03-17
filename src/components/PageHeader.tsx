@@ -14,7 +14,7 @@ export function PageHeader({ user, onLogin, onLogout, onProfile }: PageHeaderPro
   return (
     <header className="w-full py-4 px-4 sm:px-6 flex justify-between items-center border-b">
       <div className="flex items-center">
-        <h1 className="text-2xl font-bold mr-2">CineSuggest</h1>
+        <h1 className="text-2xl font-bold mr-2">ThinkFlick</h1>
         <span className="text-accent font-semibold">AI</span>
       </div>
       

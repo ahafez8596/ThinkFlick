@@ -14,6 +14,16 @@ import Recommendations from "./pages/Recommendations";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
+// Legal pages
+import PrivacyPolicy from "./pages/legal/PrivacyPolicy";
+import TermsOfService from "./pages/legal/TermsOfService";
+import CookiePolicy from "./pages/legal/CookiePolicy";
+import DMCA from "./pages/legal/DMCA";
+
+// Discover pages
+import Genres from "./pages/discover/Genres";
+import NewReleases from "./pages/discover/NewReleases";
+
 const queryClient = new QueryClient();
 
 // Protected route component
@@ -62,6 +72,17 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } 
       />
+      
+      {/* Legal Pages */}
+      <Route path="/legal/privacy-policy" element={<PrivacyPolicy />} />
+      <Route path="/legal/terms-of-service" element={<TermsOfService />} />
+      <Route path="/legal/cookie-policy" element={<CookiePolicy />} />
+      <Route path="/legal/dmca" element={<DMCA />} />
+      
+      {/* Discover Pages */}
+      <Route path="/discover/genres" element={<Genres />} />
+      <Route path="/discover/new-releases" element={<NewReleases />} />
+      
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

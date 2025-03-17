@@ -1,8 +1,7 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const TMDB_API_KEY = Deno.env.get("TMDB_API_KEY");
-const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
+const TMDB_API_KEY = Deno.env.get("TMDB_API_KEY") || "b795d65c7179a5635df1d1a73f963c6c";
+const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY") || "sk-d1d79fd66bf142318de21896ce5f40c5";
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 
 const corsHeaders = {
@@ -20,7 +19,6 @@ interface RequestBody {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -42,9 +40,8 @@ serve(async (req) => {
     let recommendations = [];
 
     if (body.source === "tmdb") {
-      // Get recommendations from TMDB
       console.log("Fetching TMDB recommendations");
-      const tmdbUrl = `${TMDB_BASE_URL}/${body.mediaType}/${body.mediaId}/recommendations?api_key=${TMDB_API_KEY}`;
+      const tmdbUrl = `${TMDB_BASE_URL}/${body.mediaType}/${body.mediaId}/recommendations?api_key=${TMDB_API_KEY}&page=1&include_adult=false`;
       const response = await fetch(tmdbUrl);
       
       if (!response.ok) {
@@ -56,8 +53,9 @@ serve(async (req) => {
         ...item,
         media_type: body.mediaType,
       }));
+      
+      console.log(`Returning ${recommendations.length} of ${data.results.length} available recommendations`);
     } else if (body.source === "ai") {
-      // Get recommendations from DeepSeek AI
       console.log("Fetching AI recommendations");
       
       if (!body.title || !body.overview) {
@@ -73,7 +71,7 @@ serve(async (req) => {
       const prompt = `
         You are an expert film and TV recommendation engine. 
         Based on the user's interest in the ${body.mediaType === "movie" ? "movie" : "TV show"} "${body.title}" with the following overview: "${body.overview}", 
-        suggest ${body.count} similar ${body.mediaType === "movie" ? "movies" : "TV shows"} they might enjoy.
+        suggest EXACTLY ${body.count} similar ${body.mediaType === "movie" ? "movies" : "TV shows"} they might enjoy.
         Return a valid JSON array with objects containing these exact fields:
         - id (a random unique number)
         - title (for movies) or name (for TV shows)
@@ -113,10 +111,10 @@ serve(async (req) => {
       const content = aiData.choices[0].message.content;
       
       try {
-        // Extract JSON from the response
         const jsonMatch = content.match(/\[[\s\S]*\]/);
         const jsonStr = jsonMatch ? jsonMatch[0] : content;
         recommendations = JSON.parse(jsonStr);
+        console.log(`AI returned ${recommendations.length} recommendations, requested ${body.count}`);
       } catch (error) {
         console.error("Error parsing AI response:", error);
         console.log("AI response content:", content);

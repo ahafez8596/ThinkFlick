@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import { useUser } from "@/contexts/UserContext";
 import { useToast } from "@/components/ui/use-toast";
+import { Footer } from "@/components/Footer";
 
 const Index = () => {
   const { user, loginAsGuest, logout } = useUser();
@@ -146,21 +147,7 @@ const Index = () => {
         </section>
       </main>
 
-      <footer className="py-6 border-t">
-        <div className="container flex flex-col items-center justify-between gap-4 md:flex-row px-4 md:px-6">
-          <p className="text-sm text-muted-foreground">
-            © 2023 ThinkFlick. All rights reserved.
-          </p>
-          <div className="flex gap-4">
-            <Button variant="ghost" size="sm">
-              Terms
-            </Button>
-            <Button variant="ghost" size="sm">
-              Privacy
-            </Button>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };

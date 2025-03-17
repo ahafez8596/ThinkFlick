@@ -1,14 +1,16 @@
+
 import { MediaType, TMDBMedia, RecommendationSource } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 
 // TMDB API configuration
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
+const TMDB_API_KEY = "b795d65c7179a5635df1d1a73f963c6c";
 
 // Search for movies or TV shows based on user query
 export async function searchMedia(query: string, type: MediaType): Promise<TMDBMedia[]> {
   try {
     const response = await fetch(
-      `${TMDB_BASE_URL}/search/${type}?api_key=b795d65c7179a5635df1d1a73f963c6c&query=${encodeURIComponent(query)}`
+      `${TMDB_BASE_URL}/search/${type}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}`
     );
     
     if (!response.ok) {
@@ -34,13 +36,15 @@ export async function getRecommendations(
   source: RecommendationSource = "tmdb"
 ): Promise<TMDBMedia[]> {
   try {
+    console.log(`Requesting ${count} recommendations for ${mediaType} ID ${mediaId} from ${source}`);
+    
     // Get the details of the media to pass to the AI model
     let title = "";
     let overview = "";
     
     if (source === "ai") {
       const details = await fetch(
-        `${TMDB_BASE_URL}/${mediaType}/${mediaId}?api_key=b795d65c7179a5635df1d1a73f963c6c`
+        `${TMDB_BASE_URL}/${mediaType}/${mediaId}?api_key=${TMDB_API_KEY}`
       );
       
       if (details.ok) {
@@ -67,6 +71,7 @@ export async function getRecommendations(
       throw new Error(error.message);
     }
     
+    console.log(`Received ${data.recommendations?.length || 0} recommendations from edge function`);
     return data.recommendations || [];
   } catch (error) {
     console.error("Error getting recommendations:", error);
@@ -193,6 +198,8 @@ function mockRecommendations(type: MediaType, count: number): TMDBMedia[] {
     }
   ];
 
+  // Return only the requested number of items
+  console.log(`Returning ${count} mock recommendations for ${type}`);
   return type === "movie" 
     ? mockMovies.slice(0, count) 
     : mockTVShows.slice(0, count);
@@ -202,4 +209,29 @@ function mockRecommendations(type: MediaType, count: number): TMDBMedia[] {
 export function getImageUrl(path: string | null, size: string = "w500"): string {
   if (!path) return "/placeholder.svg";
   return `https://image.tmdb.org/t/p/${size}${path}`;
+}
+
+// Get genres list by ID
+export async function getGenresById(mediaType: MediaType): Promise<{[id: number]: string}> {
+  try {
+    const response = await fetch(
+      `${TMDB_BASE_URL}/genre/${mediaType}/list?api_key=${TMDB_API_KEY}`
+    );
+    
+    if (!response.ok) {
+      throw new Error(`TMDB API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    const genresMap: {[id: number]: string} = {};
+    
+    data.genres.forEach((genre: {id: number, name: string}) => {
+      genresMap[genre.id] = genre.name;
+    });
+    
+    return genresMap;
+  } catch (error) {
+    console.error("Error fetching genres:", error);
+    return {};
+  }
 }
