@@ -1,7 +1,6 @@
-
 import { createContext, useState, useEffect, useContext, ReactNode } from "react";
 import { User, TMDBMedia, MediaType, RecommendationSource } from "@/types";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, Tables } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import { toast } from "@/components/ui/use-toast";
 
@@ -18,34 +17,9 @@ interface UserContextType {
 }
 
 // Define interfaces for database tables to help with TypeScript
-interface ProfileRow {
-  id: string;
-  email?: string;
-  full_name?: string;
-  avatar_url?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-interface UserPreferenceRow {
-  id: string;
-  user_id: string;
-  media_type: MediaType | null;
-  recently_watched: TMDBMedia | null;
-  recommendation_count: number;
-  recommendation_source: RecommendationSource;
-  created_at?: string;
-  updated_at?: string;
-}
-
-interface UserLikedMediaRow {
-  id: string;
-  user_id: string;
-  media_id: number;
-  media_type: MediaType;
-  media_data: TMDBMedia;
-  created_at?: string;
-}
+type ProfileRow = Tables['profiles'];
+type UserPreferenceRow = Tables['user_preferences'];
+type UserLikedMediaRow = Tables['user_liked_media'];
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
