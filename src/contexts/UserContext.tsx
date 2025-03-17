@@ -35,28 +35,43 @@ export function UserProvider({ children }: { children: ReactNode }) {
           try {
             // Get user preferences if they exist
             const { data: preferences } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+
+            // Get user preferences
+            const { data: userPrefs } = await supabase
               .from('user_preferences')
               .select('*')
               .eq('user_id', session.user.id)
               .single();
 
             // Get user's liked media
-            const { data: likedMedia } = await supabase
+            const { data: likedMediaRows } = await supabase
               .from('user_liked_media')
               .select('*')
               .eq('user_id', session.user.id);
+
+            // Extract media_data from each row
+            const likedMedia = likedMediaRows ? likedMediaRows.map(item => item.media_data as TMDBMedia) : [];
 
             setUser({
               id: session.user.id,
               email: session.user.email,
               isGuest: false,
-              preferences: preferences || {
+              preferences: userPrefs ? {
+                mediaType: userPrefs.media_type as MediaType | null,
+                recentlyWatched: userPrefs.recently_watched as TMDBMedia | null,
+                recommendationCount: userPrefs.recommendation_count as number,
+                recommendationSource: userPrefs.recommendation_source as RecommendationSource,
+              } : {
                 mediaType: null,
                 recentlyWatched: null,
                 recommendationCount: 5,
                 recommendationSource: "tmdb",
               },
-              likedMedia: likedMedia?.map(item => item.media_data) || [],
+              likedMedia: likedMedia,
             });
           } catch (error) {
             console.error('Error fetching user data:', error);
@@ -89,30 +104,45 @@ export function UserProvider({ children }: { children: ReactNode }) {
       
       if (session) {
         try {
-          // Get user preferences if they exist
-          const { data: preferences } = await supabase
+          // Get user profile
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          // Get user preferences
+          const { data: userPrefs } = await supabase
             .from('user_preferences')
             .select('*')
             .eq('user_id', session.user.id)
             .single();
 
           // Get user's liked media
-          const { data: likedMedia } = await supabase
+          const { data: likedMediaRows } = await supabase
             .from('user_liked_media')
             .select('*')
             .eq('user_id', session.user.id);
+
+          // Extract media_data from each row
+          const likedMedia = likedMediaRows ? likedMediaRows.map(item => item.media_data as TMDBMedia) : [];
 
           setUser({
             id: session.user.id,
             email: session.user.email,
             isGuest: false,
-            preferences: preferences || {
+            preferences: userPrefs ? {
+              mediaType: userPrefs.media_type as MediaType | null,
+              recentlyWatched: userPrefs.recently_watched as TMDBMedia | null,
+              recommendationCount: userPrefs.recommendation_count as number,
+              recommendationSource: userPrefs.recommendation_source as RecommendationSource,
+            } : {
               mediaType: null,
               recentlyWatched: null,
               recommendationCount: 5,
               recommendationSource: "tmdb",
             },
-            likedMedia: likedMedia?.map(item => item.media_data) || [],
+            likedMedia: likedMedia,
           });
         } catch (error) {
           console.error('Error fetching user data:', error);
