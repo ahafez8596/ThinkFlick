@@ -22,7 +22,7 @@ export function useUserPreferences(user: User | null, setUser: (user: User | nul
       try {
         // Check if preferences entry exists
         const { data } = await supabase
-          .from('user_preferences' as any)
+          .from('user_preferences')
           .select('id')
           .eq('user_id', user.id)
           .single();
@@ -30,26 +30,26 @@ export function useUserPreferences(user: User | null, setUser: (user: User | nul
         if (data) {
           // Update existing preferences
           await supabase
-            .from('user_preferences' as any)
+            .from('user_preferences')
             .update({
               media_type: updatedPreferences.mediaType,
               recently_watched: updatedPreferences.recentlyWatched,
               recommendation_count: updatedPreferences.recommendationCount,
               recommendation_source: updatedPreferences.recommendationSource,
               updated_at: new Date(),
-            } as any)
+            })
             .eq('user_id', user.id);
         } else {
           // Insert new preferences
           await supabase
-            .from('user_preferences' as any)
+            .from('user_preferences')
             .insert({
               user_id: user.id,
               media_type: updatedPreferences.mediaType,
               recently_watched: updatedPreferences.recentlyWatched,
               recommendation_count: updatedPreferences.recommendationCount,
               recommendation_source: updatedPreferences.recommendationSource,
-            } as any);
+            });
         }
       } catch (error) {
         console.error('Error updating preferences:', error);

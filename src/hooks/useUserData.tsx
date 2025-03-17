@@ -9,20 +9,20 @@ export async function fetchUserData(session: Session): Promise<User> {
   try {
     // Get user preferences
     const { data: userPrefs } = await supabase
-      .from('user_preferences' as any)
+      .from('user_preferences')
       .select('*')
       .eq('user_id', session.user.id)
       .single();
 
     // Get user's liked media
     const { data: likedMediaRows } = await supabase
-      .from('user_liked_media' as any)
+      .from('user_liked_media')
       .select('*')
       .eq('user_id', session.user.id);
 
     // Extract media_data from each row
     const likedMedia = likedMediaRows 
-      ? likedMediaRows.map(row => (row as any).media_data as TMDBMedia) 
+      ? likedMediaRows.map(row => row.media_data as TMDBMedia) 
       : [];
 
     return {
@@ -30,10 +30,10 @@ export async function fetchUserData(session: Session): Promise<User> {
       email: session.user.email,
       isGuest: false,
       preferences: userPrefs ? {
-        mediaType: (userPrefs as any).media_type as MediaType | null,
-        recentlyWatched: (userPrefs as any).recently_watched as TMDBMedia | null,
-        recommendationCount: (userPrefs as any).recommendation_count as number,
-        recommendationSource: (userPrefs as any).recommendation_source as RecommendationSource,
+        mediaType: userPrefs.media_type as MediaType | null,
+        recentlyWatched: userPrefs.recently_watched as TMDBMedia | null,
+        recommendationCount: userPrefs.recommendation_count as number,
+        recommendationSource: userPrefs.recommendation_source as RecommendationSource,
       } : {
         mediaType: null,
         recentlyWatched: null,

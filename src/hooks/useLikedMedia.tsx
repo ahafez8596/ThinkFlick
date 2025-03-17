@@ -17,13 +17,13 @@ export function useLikedMedia(user: User | null, setUser: (user: User | null) =>
     if (!user.isGuest) {
       try {
         await supabase
-          .from('user_liked_media' as any)
+          .from('user_liked_media')
           .insert({
             user_id: user.id,
             media_id: media.id,
             media_type: media.media_type,
             media_data: media,
-          } as any);
+          });
       } catch (error) {
         console.error('Error adding liked media:', error);
         toast({
@@ -48,7 +48,7 @@ export function useLikedMedia(user: User | null, setUser: (user: User | null) =>
     if (!user.isGuest) {
       try {
         await supabase
-          .from('user_liked_media' as any)
+          .from('user_liked_media')
           .delete()
           .eq('user_id', user.id)
           .eq('media_id', mediaId);
