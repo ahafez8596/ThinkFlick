@@ -33,10 +33,10 @@ export function useUserPreferences(user: User | null, setUser: (user: User | nul
             .from('user_preferences')
             .update({
               media_type: updatedPreferences.mediaType,
-              recently_watched: updatedPreferences.recentlyWatched,
+              recently_watched: updatedPreferences.recentlyWatched ? JSON.parse(JSON.stringify(updatedPreferences.recentlyWatched)) : null,
               recommendation_count: updatedPreferences.recommendationCount,
               recommendation_source: updatedPreferences.recommendationSource,
-              updated_at: new Date(),
+              updated_at: new Date().toISOString(), // Convert Date to string
             })
             .eq('user_id', user.id);
         } else {
@@ -46,7 +46,7 @@ export function useUserPreferences(user: User | null, setUser: (user: User | nul
             .insert({
               user_id: user.id,
               media_type: updatedPreferences.mediaType,
-              recently_watched: updatedPreferences.recentlyWatched,
+              recently_watched: updatedPreferences.recentlyWatched ? JSON.parse(JSON.stringify(updatedPreferences.recentlyWatched)) : null,
               recommendation_count: updatedPreferences.recommendationCount,
               recommendation_source: updatedPreferences.recommendationSource,
             });

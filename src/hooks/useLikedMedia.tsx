@@ -22,7 +22,7 @@ export function useLikedMedia(user: User | null, setUser: (user: User | null) =>
             user_id: user.id,
             media_id: media.id,
             media_type: media.media_type,
-            media_data: media,
+            media_data: JSON.parse(JSON.stringify(media)), // Convert to plain JSON object
           });
       } catch (error) {
         console.error('Error adding liked media:', error);

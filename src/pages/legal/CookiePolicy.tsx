@@ -1,5 +1,5 @@
-
 import { PageHeader } from "@/components/PageHeader";
+import { Footer } from "@/components/Footer";
 import { useUser } from "@/contexts/UserContext";
 import { useNavigate } from "react-router-dom";
 import { Separator } from "@/components/ui/separator";

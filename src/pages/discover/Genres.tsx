@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
@@ -28,7 +27,6 @@ export default function Genres() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   
-  // Fetch genres for the selected media type
   useEffect(() => {
     const fetchGenres = async () => {
       try {
@@ -38,7 +36,6 @@ export default function Genres() {
         const data = await response.json();
         setGenres(data.genres || []);
         
-        // Reset selection when changing media type
         setSelectedGenre(null);
         setMediaByGenre([]);
       } catch (error) {
@@ -49,7 +46,6 @@ export default function Genres() {
     fetchGenres();
   }, [mediaType]);
   
-  // Fetch media by genre
   useEffect(() => {
     if (!selectedGenre) return;
     
@@ -64,7 +60,7 @@ export default function Genres() {
           ...item,
           media_type: mediaType,
         })));
-        setTotalPages(Math.min(data.total_pages, 20)); // Cap at 20 pages
+        setTotalPages(Math.min(data.total_pages, 20));
       } catch (error) {
         console.error("Error fetching media by genre:", error);
       } finally {
@@ -77,7 +73,7 @@ export default function Genres() {
   
   const handleGenreChange = (value: string) => {
     setSelectedGenre(value);
-    setPage(1); // Reset to page 1 when changing genre
+    setPage(1);
   };
   
   return (
