@@ -3,7 +3,7 @@ import { createContext, useState, useEffect, useContext, ReactNode } from "react
 import { User, TMDBMedia, MediaType, RecommendationSource } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
-import { PostgrestResponse } from "@supabase/supabase-js";
+import { toast } from "@/components/ui/use-toast";
 
 interface UserContextType {
   user: User | null;
@@ -47,9 +47,6 @@ interface UserLikedMediaRow {
   created_at?: string;
 }
 
-// Type for any Supabase table query to bypass TypeScript errors
-type AnyTable = any;
-
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: ReactNode }) {
@@ -69,36 +66,36 @@ export function UserProvider({ children }: { children: ReactNode }) {
           try {
             // Get user profile
             const { data: profile } = await supabase
-              .from('profiles' as AnyTable)
+              .from('profiles')
               .select('*')
               .eq('id', session.user.id)
-              .single() as unknown as PostgrestResponse<ProfileRow>;
+              .single();
 
             // Get user preferences
             const { data: userPrefs } = await supabase
-              .from('user_preferences' as AnyTable)
+              .from('user_preferences')
               .select('*')
               .eq('user_id', session.user.id)
-              .single() as unknown as PostgrestResponse<UserPreferenceRow>;
+              .single();
 
             // Get user's liked media
             const { data: likedMediaRows } = await supabase
-              .from('user_liked_media' as AnyTable)
+              .from('user_liked_media')
               .select('*')
-              .eq('user_id', session.user.id) as unknown as PostgrestResponse<UserLikedMediaRow[]>;
+              .eq('user_id', session.user.id);
 
             // Extract media_data from each row
-            const likedMedia = likedMediaRows ? likedMediaRows.map(item => item.media_data) : [];
+            const likedMedia = likedMediaRows ? likedMediaRows.map(row => row.media_data as TMDBMedia) : [];
 
             setUser({
               id: session.user.id,
               email: session.user.email,
               isGuest: false,
               preferences: userPrefs ? {
-                mediaType: userPrefs.media_type,
-                recentlyWatched: userPrefs.recently_watched,
-                recommendationCount: userPrefs.recommendation_count,
-                recommendationSource: userPrefs.recommendation_source,
+                mediaType: userPrefs.media_type as MediaType | null,
+                recentlyWatched: userPrefs.recently_watched as TMDBMedia | null,
+                recommendationCount: userPrefs.recommendation_count as number,
+                recommendationSource: userPrefs.recommendation_source as RecommendationSource,
               } : {
                 mediaType: null,
                 recentlyWatched: null,
@@ -109,6 +106,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
             });
           } catch (error) {
             console.error('Error fetching user data:', error);
+            toast({
+              title: "Error",
+              description: "Failed to load user data",
+              variant: "destructive",
+            });
             setUser({
               id: session.user.id,
               email: session.user.email,
@@ -140,36 +142,36 @@ export function UserProvider({ children }: { children: ReactNode }) {
         try {
           // Get user profile
           const { data: profile } = await supabase
-            .from('profiles' as AnyTable)
+            .from('profiles')
             .select('*')
             .eq('id', session.user.id)
-            .single() as unknown as PostgrestResponse<ProfileRow>;
+            .single();
 
           // Get user preferences
           const { data: userPrefs } = await supabase
-            .from('user_preferences' as AnyTable)
+            .from('user_preferences')
             .select('*')
             .eq('user_id', session.user.id)
-            .single() as unknown as PostgrestResponse<UserPreferenceRow>;
+            .single();
 
           // Get user's liked media
           const { data: likedMediaRows } = await supabase
-            .from('user_liked_media' as AnyTable)
+            .from('user_liked_media')
             .select('*')
-            .eq('user_id', session.user.id) as unknown as PostgrestResponse<UserLikedMediaRow[]>;
+            .eq('user_id', session.user.id);
 
           // Extract media_data from each row
-          const likedMedia = likedMediaRows ? likedMediaRows.map(item => item.media_data) : [];
+          const likedMedia = likedMediaRows ? likedMediaRows.map(row => row.media_data as TMDBMedia) : [];
 
           setUser({
             id: session.user.id,
             email: session.user.email,
             isGuest: false,
             preferences: userPrefs ? {
-              mediaType: userPrefs.media_type,
-              recentlyWatched: userPrefs.recently_watched,
-              recommendationCount: userPrefs.recommendation_count,
-              recommendationSource: userPrefs.recommendation_source,
+              mediaType: userPrefs.media_type as MediaType | null,
+              recentlyWatched: userPrefs.recently_watched as TMDBMedia | null,
+              recommendationCount: userPrefs.recommendation_count as number,
+              recommendationSource: userPrefs.recommendation_source as RecommendationSource,
             } : {
               mediaType: null,
               recentlyWatched: null,
@@ -180,6 +182,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
           });
         } catch (error) {
           console.error('Error fetching user data:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load user data",
+            variant: "destructive",
+          });
           setUser({
             id: session.user.id,
             email: session.user.email,
@@ -245,15 +252,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
       try {
         // Check if preferences entry exists
         const { data } = await supabase
-          .from('user_preferences' as AnyTable)
+          .from('user_preferences')
           .select('id')
           .eq('user_id', user.id)
-          .single() as unknown as PostgrestResponse<{ id: string }>;
+          .single();
 
         if (data) {
           // Update existing preferences
           await supabase
-            .from('user_preferences' as AnyTable)
+            .from('user_preferences')
             .update({
               media_type: updatedPreferences.mediaType,
               recently_watched: updatedPreferences.recentlyWatched,
@@ -261,21 +268,26 @@ export function UserProvider({ children }: { children: ReactNode }) {
               recommendation_source: updatedPreferences.recommendationSource,
               updated_at: new Date(),
             })
-            .eq('user_id', user.id) as unknown as PostgrestResponse<any>;
+            .eq('user_id', user.id);
         } else {
           // Insert new preferences
           await supabase
-            .from('user_preferences' as AnyTable)
+            .from('user_preferences')
             .insert({
               user_id: user.id,
               media_type: updatedPreferences.mediaType,
               recently_watched: updatedPreferences.recentlyWatched,
               recommendation_count: updatedPreferences.recommendationCount,
               recommendation_source: updatedPreferences.recommendationSource,
-            }) as unknown as PostgrestResponse<any>;
+            });
         }
       } catch (error) {
         console.error('Error updating preferences:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update preferences",
+          variant: "destructive",
+        });
       }
     }
   };
@@ -293,15 +305,20 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (!user.isGuest) {
       try {
         await supabase
-          .from('user_liked_media' as AnyTable)
+          .from('user_liked_media')
           .insert({
             user_id: user.id,
             media_id: media.id,
             media_type: media.media_type,
             media_data: media,
-          }) as unknown as PostgrestResponse<any>;
+          });
       } catch (error) {
         console.error('Error adding liked media:', error);
+        toast({
+          title: "Error",
+          description: "Failed to save liked media",
+          variant: "destructive",
+        });
       }
     }
   };
@@ -319,12 +336,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (!user.isGuest) {
       try {
         await supabase
-          .from('user_liked_media' as AnyTable)
+          .from('user_liked_media')
           .delete()
           .eq('user_id', user.id)
-          .eq('media_id', mediaId) as unknown as PostgrestResponse<any>;
+          .eq('media_id', mediaId);
       } catch (error) {
         console.error('Error removing liked media:', error);
+        toast({
+          title: "Error",
+          description: "Failed to remove liked media",
+          variant: "destructive",
+        });
       }
     }
   };
