@@ -16,6 +16,36 @@ interface UserContextType {
   removeLikedMedia: (mediaId: number) => void;
 }
 
+// Define interfaces for database tables to help with TypeScript
+interface ProfileRow {
+  id: string;
+  email?: string;
+  full_name?: string;
+  avatar_url?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface UserPreferenceRow {
+  id: string;
+  user_id: string;
+  media_type: MediaType | null;
+  recently_watched: TMDBMedia | null;
+  recommendation_count: number;
+  recommendation_source: RecommendationSource;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface UserLikedMediaRow {
+  id: string;
+  user_id: string;
+  media_id: number;
+  media_type: MediaType;
+  media_data: TMDBMedia;
+  created_at?: string;
+}
+
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: ReactNode }) {
@@ -33,38 +63,38 @@ export function UserProvider({ children }: { children: ReactNode }) {
         if (session) {
           // Authenticated user
           try {
-            // Get user preferences if they exist
-            const { data: preferences } = await supabase
+            // Get user profile
+            const { data: profile } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
-              .single();
+              .single() as { data: ProfileRow | null };
 
             // Get user preferences
             const { data: userPrefs } = await supabase
               .from('user_preferences')
               .select('*')
               .eq('user_id', session.user.id)
-              .single();
+              .single() as { data: UserPreferenceRow | null };
 
             // Get user's liked media
             const { data: likedMediaRows } = await supabase
               .from('user_liked_media')
               .select('*')
-              .eq('user_id', session.user.id);
+              .eq('user_id', session.user.id) as { data: UserLikedMediaRow[] | null };
 
             // Extract media_data from each row
-            const likedMedia = likedMediaRows ? likedMediaRows.map(item => item.media_data as TMDBMedia) : [];
+            const likedMedia = likedMediaRows ? likedMediaRows.map(item => item.media_data) : [];
 
             setUser({
               id: session.user.id,
               email: session.user.email,
               isGuest: false,
               preferences: userPrefs ? {
-                mediaType: userPrefs.media_type as MediaType | null,
-                recentlyWatched: userPrefs.recently_watched as TMDBMedia | null,
-                recommendationCount: userPrefs.recommendation_count as number,
-                recommendationSource: userPrefs.recommendation_source as RecommendationSource,
+                mediaType: userPrefs.media_type,
+                recentlyWatched: userPrefs.recently_watched,
+                recommendationCount: userPrefs.recommendation_count,
+                recommendationSource: userPrefs.recommendation_source,
               } : {
                 mediaType: null,
                 recentlyWatched: null,
@@ -109,33 +139,33 @@ export function UserProvider({ children }: { children: ReactNode }) {
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
-            .single();
+            .single() as { data: ProfileRow | null };
 
           // Get user preferences
           const { data: userPrefs } = await supabase
             .from('user_preferences')
             .select('*')
             .eq('user_id', session.user.id)
-            .single();
+            .single() as { data: UserPreferenceRow | null };
 
           // Get user's liked media
           const { data: likedMediaRows } = await supabase
             .from('user_liked_media')
             .select('*')
-            .eq('user_id', session.user.id);
+            .eq('user_id', session.user.id) as { data: UserLikedMediaRow[] | null };
 
           // Extract media_data from each row
-          const likedMedia = likedMediaRows ? likedMediaRows.map(item => item.media_data as TMDBMedia) : [];
+          const likedMedia = likedMediaRows ? likedMediaRows.map(item => item.media_data) : [];
 
           setUser({
             id: session.user.id,
             email: session.user.email,
             isGuest: false,
             preferences: userPrefs ? {
-              mediaType: userPrefs.media_type as MediaType | null,
-              recentlyWatched: userPrefs.recently_watched as TMDBMedia | null,
-              recommendationCount: userPrefs.recommendation_count as number,
-              recommendationSource: userPrefs.recommendation_source as RecommendationSource,
+              mediaType: userPrefs.media_type,
+              recentlyWatched: userPrefs.recently_watched,
+              recommendationCount: userPrefs.recommendation_count,
+              recommendationSource: userPrefs.recommendation_source,
             } : {
               mediaType: null,
               recentlyWatched: null,
@@ -214,7 +244,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           .from('user_preferences')
           .select('id')
           .eq('user_id', user.id)
-          .single();
+          .single() as { data: { id: string } | null };
 
         if (data) {
           // Update existing preferences
@@ -227,7 +257,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
               recommendation_source: updatedPreferences.recommendationSource,
               updated_at: new Date(),
             })
-            .eq('user_id', user.id);
+            .eq('user_id', user.id) as any;
         } else {
           // Insert new preferences
           await supabase
@@ -238,7 +268,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
               recently_watched: updatedPreferences.recentlyWatched,
               recommendation_count: updatedPreferences.recommendationCount,
               recommendation_source: updatedPreferences.recommendationSource,
-            });
+            }) as any;
         }
       } catch (error) {
         console.error('Error updating preferences:', error);
@@ -265,7 +295,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
             media_id: media.id,
             media_type: media.media_type,
             media_data: media,
-          });
+          }) as any;
       } catch (error) {
         console.error('Error adding liked media:', error);
       }
@@ -288,7 +318,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           .from('user_liked_media')
           .delete()
           .eq('user_id', user.id)
-          .eq('media_id', mediaId);
+          .eq('media_id', mediaId) as any;
       } catch (error) {
         console.error('Error removing liked media:', error);
       }
