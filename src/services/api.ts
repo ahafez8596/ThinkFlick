@@ -1,16 +1,14 @@
-
 import { MediaType, TMDBMedia, RecommendationSource } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
 
-// This would be replaced with actual API key from environment variables in a real app
-const TMDB_API_KEY = "YOUR_TMDB_API_KEY";
+// TMDB API configuration
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 
-// Mock implementation for demo purposes
+// Search for movies or TV shows based on user query
 export async function searchMedia(query: string, type: MediaType): Promise<TMDBMedia[]> {
-  // This would be an actual TMDB API call in production
   try {
     const response = await fetch(
-      `${TMDB_BASE_URL}/search/${type}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}`
+      `${TMDB_BASE_URL}/search/${type}?api_key=b795d65c7179a5635df1d1a73f963c6c&query=${encodeURIComponent(query)}`
     );
     
     if (!response.ok) {
@@ -28,40 +26,56 @@ export async function searchMedia(query: string, type: MediaType): Promise<TMDBM
   }
 }
 
+// Get recommendations based on user preferences
 export async function getRecommendations(
   mediaId: number, 
   mediaType: MediaType, 
   count: number = 5,
   source: RecommendationSource = "tmdb"
 ): Promise<TMDBMedia[]> {
-  // This would be an actual API call in production
   try {
-    // For now, return mock data for demonstration
-    if (source === "tmdb") {
-      const response = await fetch(
-        `${TMDB_BASE_URL}/${mediaType}/${mediaId}/recommendations?api_key=${TMDB_API_KEY}`
+    // Get the details of the media to pass to the AI model
+    let title = "";
+    let overview = "";
+    
+    if (source === "ai") {
+      const details = await fetch(
+        `${TMDB_BASE_URL}/${mediaType}/${mediaId}?api_key=b795d65c7179a5635df1d1a73f963c6c`
       );
       
-      if (!response.ok) {
-        throw new Error(`TMDB API error: ${response.status}`);
+      if (details.ok) {
+        const detailsData = await details.json();
+        title = detailsData.title || detailsData.name || "";
+        overview = detailsData.overview || "";
       }
-      
-      const data = await response.json();
-      return data.results.slice(0, count).map((item: any) => ({
-        ...item,
-        media_type: mediaType,
-      }));
-    } else {
-      // AI recommendations would be fetched from a separate API endpoint
-      // For now, return mock data
-      return mockRecommendations(mediaType, count);
     }
+    
+    // Call our edge function for recommendations
+    const { data, error } = await supabase.functions.invoke("get-recommendations", {
+      body: { 
+        mediaId, 
+        mediaType, 
+        count, 
+        source,
+        title,
+        overview
+      }
+    });
+    
+    if (error) {
+      console.error("Edge function error:", error);
+      throw new Error(error.message);
+    }
+    
+    return data.recommendations || [];
   } catch (error) {
     console.error("Error getting recommendations:", error);
+    // Fallback to mockRecommendations if there's an error
     return mockRecommendations(mediaType, count);
   }
 }
 
+// Mock recommendations for fallback
 function mockRecommendations(type: MediaType, count: number): TMDBMedia[] {
   const mockMovies: TMDBMedia[] = [
     {
@@ -184,6 +198,7 @@ function mockRecommendations(type: MediaType, count: number): TMDBMedia[] {
     : mockTVShows.slice(0, count);
 }
 
+// Get image URL for posters and backdrops
 export function getImageUrl(path: string | null, size: string = "w500"): string {
   if (!path) return "/placeholder.svg";
   return `https://image.tmdb.org/t/p/${size}${path}`;

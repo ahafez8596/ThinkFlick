@@ -15,30 +15,24 @@ const Index = () => {
     if (user) {
       navigate("/selection");
     } else {
-      loginAsGuest();
-      toast({
-        title: "Welcome, Guest!",
-        description: "You're now using CineSuggest as a guest.",
-      });
-      navigate("/selection");
+      navigate("/auth");
     }
   };
 
-  const handleLogin = () => {
-    // In a real app, this would redirect to a login page
-    // For now, we'll just log in as a guest
+  const handleGuestLogin = () => {
     loginAsGuest();
     toast({
       title: "Welcome, Guest!",
-      description: "You're now using CineSuggest as a guest.",
+      description: "You're now using ThinkFlick as a guest.",
     });
+    navigate("/selection");
   };
 
   return (
     <div className="min-h-screen flex flex-col">
       <PageHeader 
         user={user} 
-        onLogin={handleLogin} 
+        onLogin={() => navigate("/auth")} 
         onLogout={logout}
         onProfile={() => navigate("/profile")}
       />
@@ -48,11 +42,11 @@ const Index = () => {
           <div className="container px-4 md:px-6 space-y-10 text-center">
             <div className="space-y-4">
               <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
-                Discover Your Next Favorite{" "}
+                ThinkFlick: Discover Your Next Favorite{" "}
                 <span className="text-accent">Watch</span>
               </h1>
               <p className="mx-auto max-w-[700px] text-gray-500 md:text-xl dark:text-gray-400">
-                CineSuggest AI uses advanced technology to recommend movies and TV shows 
+                ThinkFlick uses advanced AI technology to recommend movies and TV shows 
                 tailored specifically to your taste.
               </p>
             </div>
@@ -61,7 +55,7 @@ const Index = () => {
                 Get Started
               </Button>
               {!user && (
-                <Button variant="outline" size="lg" onClick={handleLogin}>
+                <Button variant="outline" size="lg" onClick={handleGuestLogin}>
                   Continue as Guest
                 </Button>
               )}
@@ -155,7 +149,7 @@ const Index = () => {
       <footer className="py-6 border-t">
         <div className="container flex flex-col items-center justify-between gap-4 md:flex-row px-4 md:px-6">
           <p className="text-sm text-muted-foreground">
-            © 2023 CineSuggest AI. All rights reserved.
+            © 2023 ThinkFlick. All rights reserved.
           </p>
           <div className="flex gap-4">
             <Button variant="ghost" size="sm">

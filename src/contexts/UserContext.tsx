@@ -1,9 +1,13 @@
 
-import { createContext, useState, useContext, ReactNode } from "react";
+import { createContext, useState, useEffect, useContext, ReactNode } from "react";
 import { User, TMDBMedia, MediaType, RecommendationSource } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
+import { Session } from "@supabase/supabase-js";
 
 interface UserContextType {
   user: User | null;
+  session: Session | null;
+  loading: boolean;
   setUser: (user: User | null) => void;
   loginAsGuest: () => void;
   logout: () => void;
@@ -16,6 +20,126 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Initialize the auth listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setSession(session);
+        setLoading(true);
+
+        if (session) {
+          // Authenticated user
+          try {
+            // Get user preferences if they exist
+            const { data: preferences } = await supabase
+              .from('user_preferences')
+              .select('*')
+              .eq('user_id', session.user.id)
+              .single();
+
+            // Get user's liked media
+            const { data: likedMedia } = await supabase
+              .from('user_liked_media')
+              .select('*')
+              .eq('user_id', session.user.id);
+
+            setUser({
+              id: session.user.id,
+              email: session.user.email,
+              isGuest: false,
+              preferences: preferences || {
+                mediaType: null,
+                recentlyWatched: null,
+                recommendationCount: 5,
+                recommendationSource: "tmdb",
+              },
+              likedMedia: likedMedia?.map(item => item.media_data) || [],
+            });
+          } catch (error) {
+            console.error('Error fetching user data:', error);
+            setUser({
+              id: session.user.id,
+              email: session.user.email,
+              isGuest: false,
+              preferences: {
+                mediaType: null,
+                recentlyWatched: null,
+                recommendationCount: 5,
+                recommendationSource: "tmdb",
+              },
+              likedMedia: [],
+            });
+          }
+        } else {
+          // No active session
+          setUser(null);
+        }
+        
+        setLoading(false);
+      }
+    );
+
+    // Get initial session
+    const initializeAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      
+      if (session) {
+        try {
+          // Get user preferences if they exist
+          const { data: preferences } = await supabase
+            .from('user_preferences')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .single();
+
+          // Get user's liked media
+          const { data: likedMedia } = await supabase
+            .from('user_liked_media')
+            .select('*')
+            .eq('user_id', session.user.id);
+
+          setUser({
+            id: session.user.id,
+            email: session.user.email,
+            isGuest: false,
+            preferences: preferences || {
+              mediaType: null,
+              recentlyWatched: null,
+              recommendationCount: 5,
+              recommendationSource: "tmdb",
+            },
+            likedMedia: likedMedia?.map(item => item.media_data) || [],
+          });
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+          setUser({
+            id: session.user.id,
+            email: session.user.email,
+            isGuest: false,
+            preferences: {
+              mediaType: null,
+              recentlyWatched: null,
+              recommendationCount: 5,
+              recommendationSource: "tmdb",
+            },
+            likedMedia: [],
+          });
+        }
+      }
+      
+      setLoading(false);
+    };
+
+    initializeAuth();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const loginAsGuest = () => {
     setUser({
@@ -31,44 +155,122 @@ export function UserProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const logout = () => {
+  const logout = async () => {
+    if (!user?.isGuest) {
+      await supabase.auth.signOut();
+    }
     setUser(null);
+    setSession(null);
   };
 
-  const updatePreferences = (preferences: Partial<User["preferences"]>) => {
+  const updatePreferences = async (preferences: Partial<User["preferences"]>) => {
     if (!user) return;
+    
+    const updatedPreferences = {
+      ...user.preferences,
+      ...preferences,
+    } as User["preferences"];
     
     setUser({
       ...user,
-      preferences: {
-        ...user.preferences,
-        ...preferences,
-      } as User["preferences"],
+      preferences: updatedPreferences,
     });
+
+    // If not a guest, update preferences in the database
+    if (!user.isGuest) {
+      try {
+        // Check if preferences entry exists
+        const { data } = await supabase
+          .from('user_preferences')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (data) {
+          // Update existing preferences
+          await supabase
+            .from('user_preferences')
+            .update({
+              media_type: updatedPreferences.mediaType,
+              recently_watched: updatedPreferences.recentlyWatched,
+              recommendation_count: updatedPreferences.recommendationCount,
+              recommendation_source: updatedPreferences.recommendationSource,
+              updated_at: new Date(),
+            })
+            .eq('user_id', user.id);
+        } else {
+          // Insert new preferences
+          await supabase
+            .from('user_preferences')
+            .insert({
+              user_id: user.id,
+              media_type: updatedPreferences.mediaType,
+              recently_watched: updatedPreferences.recentlyWatched,
+              recommendation_count: updatedPreferences.recommendationCount,
+              recommendation_source: updatedPreferences.recommendationSource,
+            });
+        }
+      } catch (error) {
+        console.error('Error updating preferences:', error);
+      }
+    }
   };
 
-  const addLikedMedia = (media: TMDBMedia) => {
+  const addLikedMedia = async (media: TMDBMedia) => {
     if (!user) return;
     
+    // Update local state
     setUser({
       ...user,
       likedMedia: [...(user.likedMedia || []), media],
     });
+
+    // If not a guest, update database
+    if (!user.isGuest) {
+      try {
+        await supabase
+          .from('user_liked_media')
+          .insert({
+            user_id: user.id,
+            media_id: media.id,
+            media_type: media.media_type,
+            media_data: media,
+          });
+      } catch (error) {
+        console.error('Error adding liked media:', error);
+      }
+    }
   };
 
-  const removeLikedMedia = (mediaId: number) => {
+  const removeLikedMedia = async (mediaId: number) => {
     if (!user || !user.likedMedia) return;
     
+    // Update local state
     setUser({
       ...user,
       likedMedia: user.likedMedia.filter((item) => item.id !== mediaId),
     });
+
+    // If not a guest, update database
+    if (!user.isGuest) {
+      try {
+        await supabase
+          .from('user_liked_media')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('media_id', mediaId);
+      } catch (error) {
+        console.error('Error removing liked media:', error);
+      }
+    }
   };
 
   return (
     <UserContext.Provider
       value={{
         user,
+        session,
+        loading,
         setUser,
         loginAsGuest,
         logout,

@@ -4,6 +4,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { RecommendationSource } from "@/types";
+import { useState } from "react";
 
 interface RecommendationOptionsProps {
   count: number;
@@ -20,6 +21,13 @@ export function RecommendationOptions({
   setSource,
   onSubmit,
 }: RecommendationOptionsProps) {
+  const [showCount, setShowCount] = useState(count.toString());
+  
+  const handleSliderChange = (value: number[]) => {
+    setCount(value[0]);
+    setShowCount(value[0].toString());
+  };
+
   return (
     <div className="space-y-8 max-w-xl mx-auto">
       <div className="space-y-4">
@@ -28,14 +36,14 @@ export function RecommendationOptions({
           <Slider
             value={[count]}
             min={1}
-            max={20}
+            max={50}
             step={1}
-            onValueChange={(value) => setCount(value[0])}
+            onValueChange={handleSliderChange}
           />
           <div className="flex justify-between">
             <span>1</span>
-            <span className="font-bold">{count}</span>
-            <span>20</span>
+            <span className="font-bold">{showCount}</span>
+            <span>50</span>
           </div>
         </div>
       </div>
@@ -43,7 +51,7 @@ export function RecommendationOptions({
       <div className="space-y-4">
         <h3 className="text-lg font-medium">Recommendation source</h3>
         <RadioGroup
-          defaultValue={source}
+          value={source}
           onValueChange={(value) => setSource(value as RecommendationSource)}
           className="flex space-x-2"
         >
