@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.4.0";
 
 // Load environment variables
-const TMDB_API_KEY = Deno.env.get("TMDB_API_KEY") || "b795d65c7179a5635df1d1a73f963c6c";
+const TMDB_API_KEY = Deno.env.get("TMDB_API_KEY") || "";
 const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY") || "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
@@ -38,6 +38,11 @@ interface RequestBody {
   overview?: string;
 }
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 async function getTMDBRecommendations(
   mediaId: number,
   mediaType: MediaType,
@@ -68,6 +73,31 @@ async function getTMDBRecommendations(
       
       allResults = [...allResults, ...pageResults];
     }
+
+    // If we still don't have enough recommendations, fetch similar media
+    if (allResults.length < count) {
+      console.log(`Not enough recommendations, fetching similar ${mediaType}s...`);
+      
+      for (let page = 1; page <= pagesToFetch && allResults.length < count; page++) {
+        const response = await fetch(
+          `https://api.themoviedb.org/3/${mediaType}/${mediaId}/similar?api_key=${TMDB_API_KEY}&language=en-US&page=${page}`
+        );
+
+        if (!response.ok) {
+          throw new Error(`TMDB API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const pageResults = data.results
+          .filter((item: any) => !allResults.some((existing) => existing.id === item.id))
+          .map((item: any) => ({
+            ...item,
+            media_type: mediaType,
+          }));
+        
+        allResults = [...allResults, ...pageResults];
+      }
+    }
     
     // Trim to exact count requested
     return allResults.slice(0, count);
@@ -93,7 +123,7 @@ async function getAIRecommendations(
     console.log(`Generating ${count} AI recommendations for "${title}"`);
     
     // Prepare the prompt
-    const prompt = `Based on ${mediaType} "${title}" with this description: "${overview}", suggest ${count} similar ${mediaType}s that viewers might enjoy. Provide results in JSON format with fields: title, overview, vote_average (between 1-10).`;
+    const prompt = `Based on ${mediaType} "${title}" with this description: "${overview}", suggest ${count} similar ${mediaType}s that viewers might enjoy. For each recommendation, provide a title, a brief overview/description, and a rating out of 10. These should be real ${mediaType}s that exist, not made-up ones. Please provide results in valid JSON format with array of objects containing fields: title, overview, vote_average (between 1-10).`;
 
     // Call DeepSeek API
     const deepseekResponse = await fetch("https://api.deepseek.com/v1/chat/completions", {
@@ -119,12 +149,15 @@ async function getAIRecommendations(
     });
 
     if (!deepseekResponse.ok) {
-      throw new Error(`DeepSeek API error: ${deepseekResponse.status} - ${await deepseekResponse.text()}`);
+      console.error(`DeepSeek API error: ${deepseekResponse.status}`);
+      const errorText = await deepseekResponse.text();
+      console.error(`Error response: ${errorText}`);
+      throw new Error(`DeepSeek API error: ${deepseekResponse.status}`);
     }
 
     const aiData = await deepseekResponse.json();
     const content = aiData.choices[0]?.message?.content;
-    console.log("AI response:", content);
+    console.log("AI response received, processing...");
 
     // Parse the JSON response from AI
     let recommendations;
@@ -133,8 +166,10 @@ async function getAIRecommendations(
       const jsonMatch = content.match(/```json\n([\s\S]*)\n```/) || content.match(/```\n([\s\S]*)\n```/);
       const jsonContent = jsonMatch ? jsonMatch[1] : content;
       recommendations = JSON.parse(jsonContent);
+      console.log(`Successfully parsed ${Array.isArray(recommendations) ? recommendations.length : 0} recommendations`);
     } catch (e) {
       console.error("Failed to parse AI response as JSON:", e);
+      console.log("Raw AI response:", content);
       return await getTMDBRecommendations(mediaId, mediaType, count);
     }
 
@@ -166,11 +201,7 @@ serve(async (req) => {
   // Handle CORS
   if (req.method === "OPTIONS") {
     return new Response(null, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      },
+      headers: corsHeaders
     });
   }
 
@@ -195,7 +226,7 @@ serve(async (req) => {
       {
         headers: { 
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
+          ...corsHeaders
         }
       }
     );
@@ -207,7 +238,7 @@ serve(async (req) => {
         status: 500,
         headers: { 
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
+          ...corsHeaders
         }
       }
     );
