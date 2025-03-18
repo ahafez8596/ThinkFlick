@@ -99,6 +99,7 @@ async function getTMDBRecommendations(
       }
     }
     
+    console.log(`TMDB returned ${allResults.length} recommendations, trimming to ${count} as requested`);
     // Trim to exact count requested
     return allResults.slice(0, count);
   } catch (error) {
@@ -120,10 +121,10 @@ async function getAIRecommendations(
   }
 
   try {
-    console.log(`Generating ${count} AI recommendations for "${title}"`);
+    console.log(`Generating ${count} AI recommendations for "${title}" with source type "DeepSeek"`);
     
     // Prepare the prompt
-    const prompt = `Based on ${mediaType} "${title}" with this description: "${overview}", suggest ${count} similar ${mediaType}s that viewers might enjoy. For each recommendation, provide a title, a brief overview/description, and a rating out of 10. These should be real ${mediaType}s that exist, not made-up ones. Please provide results in valid JSON format with array of objects containing fields: title, overview, vote_average (between 1-10).`;
+    const prompt = `Based on ${mediaType} "${title}" with this description: "${overview}", suggest exactly ${count} similar ${mediaType}s that viewers might enjoy. For each recommendation, provide a title, a brief overview/description, and a rating out of 10. These should be real ${mediaType}s that exist, not made-up ones. Please provide results in valid JSON format with array of objects containing fields: title, overview, vote_average (between 1-10).`;
 
     // Call DeepSeek API
     const deepseekResponse = await fetch("https://api.deepseek.com/v1/chat/completions", {
@@ -151,13 +152,13 @@ async function getAIRecommendations(
     if (!deepseekResponse.ok) {
       console.error(`DeepSeek API error: ${deepseekResponse.status}`);
       const errorText = await deepseekResponse.text();
-      console.error(`Error response: ${errorText}`);
+      console.error(`DeepSeek error response: ${errorText}`);
       throw new Error(`DeepSeek API error: ${deepseekResponse.status}`);
     }
 
     const aiData = await deepseekResponse.json();
     const content = aiData.choices[0]?.message?.content;
-    console.log("AI response received, processing...");
+    console.log("DeepSeek AI response received, processing...");
 
     // Parse the JSON response from AI
     let recommendations;
@@ -166,7 +167,7 @@ async function getAIRecommendations(
       const jsonMatch = content.match(/```json\n([\s\S]*)\n```/) || content.match(/```\n([\s\S]*)\n```/);
       const jsonContent = jsonMatch ? jsonMatch[1] : content;
       recommendations = JSON.parse(jsonContent);
-      console.log(`Successfully parsed ${Array.isArray(recommendations) ? recommendations.length : 0} recommendations`);
+      console.log(`Successfully parsed ${Array.isArray(recommendations) ? recommendations.length : 0} AI recommendations`);
     } catch (e) {
       console.error("Failed to parse AI response as JSON:", e);
       console.log("Raw AI response:", content);
@@ -177,7 +178,10 @@ async function getAIRecommendations(
     const aiRecommendations = Array.isArray(recommendations) 
       ? recommendations 
       : recommendations.recommendations || [];
+    
+    console.log(`AI returned ${aiRecommendations.length} recommendations`);
 
+    // Make sure we return exactly the requested count
     return aiRecommendations.slice(0, count).map((item: any, index: number) => ({
       id: mediaId + index + 1000000, // Generate unique IDs
       title: mediaType === "movie" ? item.title : undefined,
@@ -208,21 +212,27 @@ serve(async (req) => {
   try {
     const { mediaId, mediaType, count, source, title, overview } = await req.json() as RequestBody;
     
-    console.log(`Received request for ${count} recommendations using ${source} source`);
+    console.log(`Received request for ${count} recommendations using "${source}" source for ${mediaType} ID ${mediaId}`);
     
     let recommendations: TMDBMedia[] = [];
     
     // Get recommendations based on source
     if (source === "ai" && title && overview) {
+      console.log("Using AI recommendations source");
       recommendations = await getAIRecommendations(mediaId, mediaType, count, title, overview);
     } else {
+      console.log("Using TMDB recommendations source");
       recommendations = await getTMDBRecommendations(mediaId, mediaType, count);
     }
     
-    console.log(`Returning ${recommendations.length} recommendations`);
+    console.log(`Returning ${recommendations.length} recommendations to client`);
     
     return new Response(
-      JSON.stringify({ recommendations }),
+      JSON.stringify({ 
+        recommendations,
+        source, // Return the source used so client can verify
+        requested_count: count
+      }),
       {
         headers: { 
           "Content-Type": "application/json",
