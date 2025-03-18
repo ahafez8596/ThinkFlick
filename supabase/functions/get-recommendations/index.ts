@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.4.0";
 
 // Load environment variables
 const TMDB_API_KEY = Deno.env.get("TMDB_API_KEY") || "b795d65c7179a5635df1d1a73f963c6c";
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") || "";
+const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY") || "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 
@@ -44,21 +44,33 @@ async function getTMDBRecommendations(
   count: number
 ): Promise<TMDBMedia[]> {
   try {
-    const response = await fetch(
-      `https://api.themoviedb.org/3/${mediaType}/${mediaId}/recommendations?api_key=${TMDB_API_KEY}&language=en-US&page=1`
-    );
+    console.log(`Fetching ${count} TMDB recommendations for ${mediaType} ID ${mediaId}`);
+    
+    // We may need to fetch multiple pages to get the requested count
+    const recommendationsPerPage = 20;
+    const pagesToFetch = Math.ceil(count / recommendationsPerPage);
+    let allResults: TMDBMedia[] = [];
+    
+    for (let page = 1; page <= pagesToFetch && allResults.length < count; page++) {
+      const response = await fetch(
+        `https://api.themoviedb.org/3/${mediaType}/${mediaId}/recommendations?api_key=${TMDB_API_KEY}&language=en-US&page=${page}`
+      );
 
-    if (!response.ok) {
-      throw new Error(`TMDB API error: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`TMDB API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const pageResults = data.results.map((item: any) => ({
+        ...item,
+        media_type: mediaType,
+      }));
+      
+      allResults = [...allResults, ...pageResults];
     }
-
-    const data = await response.json();
-    const results = data.results.slice(0, count).map((item: any) => ({
-      ...item,
-      media_type: mediaType,
-    }));
-
-    return results;
+    
+    // Trim to exact count requested
+    return allResults.slice(0, count);
   } catch (error) {
     console.error("Error fetching TMDB recommendations:", error);
     return [];
@@ -72,28 +84,30 @@ async function getAIRecommendations(
   title: string,
   overview: string
 ): Promise<TMDBMedia[]> {
-  if (!OPENAI_API_KEY) {
-    console.error("OpenAI API key not found");
+  if (!DEEPSEEK_API_KEY) {
+    console.error("DeepSeek API key not found");
     return await getTMDBRecommendations(mediaId, mediaType, count);
   }
 
   try {
+    console.log(`Generating ${count} AI recommendations for "${title}"`);
+    
     // Prepare the prompt
     const prompt = `Based on ${mediaType} "${title}" with this description: "${overview}", suggest ${count} similar ${mediaType}s that viewers might enjoy. Provide results in JSON format with fields: title, overview, vote_average (between 1-10).`;
 
-    // Call OpenAI API
-    const openAIResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+    // Call DeepSeek API
+    const deepseekResponse = await fetch("https://api.deepseek.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENAI_API_KEY}`
+        "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
       },
       body: JSON.stringify({
-        model: "gpt-3.5-turbo",
+        model: "deepseek-chat",
         messages: [
           {
             role: "system",
-            content: "You are a recommendation engine for movies and TV shows. Return only JSON without markdown formatting."
+            content: "You are a recommendation engine for movies and TV shows. Return only JSON without markdown formatting. The JSON should be an array of objects, each with title, overview, and vote_average properties."
           },
           {
             role: "user",
@@ -104,12 +118,13 @@ async function getAIRecommendations(
       })
     });
 
-    if (!openAIResponse.ok) {
-      throw new Error(`OpenAI API error: ${openAIResponse.status}`);
+    if (!deepseekResponse.ok) {
+      throw new Error(`DeepSeek API error: ${deepseekResponse.status} - ${await deepseekResponse.text()}`);
     }
 
-    const aiData = await openAIResponse.json();
+    const aiData = await deepseekResponse.json();
     const content = aiData.choices[0]?.message?.content;
+    console.log("AI response:", content);
 
     // Parse the JSON response from AI
     let recommendations;
@@ -128,7 +143,7 @@ async function getAIRecommendations(
       ? recommendations 
       : recommendations.recommendations || [];
 
-    return aiRecommendations.map((item: any, index: number) => ({
+    return aiRecommendations.slice(0, count).map((item: any, index: number) => ({
       id: mediaId + index + 1000000, // Generate unique IDs
       title: mediaType === "movie" ? item.title : undefined,
       name: mediaType === "tv" ? item.title : undefined,
@@ -162,6 +177,8 @@ serve(async (req) => {
   try {
     const { mediaId, mediaType, count, source, title, overview } = await req.json() as RequestBody;
     
+    console.log(`Received request for ${count} recommendations using ${source} source`);
+    
     let recommendations: TMDBMedia[] = [];
     
     // Get recommendations based on source
@@ -170,6 +187,8 @@ serve(async (req) => {
     } else {
       recommendations = await getTMDBRecommendations(mediaId, mediaType, count);
     }
+    
+    console.log(`Returning ${recommendations.length} recommendations`);
     
     return new Response(
       JSON.stringify({ recommendations }),

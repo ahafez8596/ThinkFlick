@@ -22,7 +22,7 @@ export async function fetchUserData(session: Session): Promise<User> {
 
     // Extract media_data from each row with proper type casting
     const likedMedia = likedMediaRows 
-      ? likedMediaRows.map(row => row.media_data as unknown as TMDBMedia) 
+      ? likedMediaRows.map(row => JSON.parse(JSON.stringify(row.media_data)) as TMDBMedia) 
       : [];
 
     return {
@@ -31,7 +31,7 @@ export async function fetchUserData(session: Session): Promise<User> {
       isGuest: false,
       preferences: userPrefs ? {
         mediaType: userPrefs.media_type as MediaType | null,
-        recentlyWatched: userPrefs.recently_watched as unknown as TMDBMedia | null,
+        recentlyWatched: userPrefs.recently_watched ? JSON.parse(JSON.stringify(userPrefs.recently_watched)) as TMDBMedia : null,
         recommendationCount: userPrefs.recommendation_count as number,
         recommendationSource: userPrefs.recommendation_source as RecommendationSource,
       } : {
