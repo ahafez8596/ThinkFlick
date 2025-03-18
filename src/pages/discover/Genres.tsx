@@ -3,18 +3,12 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
 import { useUser } from "@/contexts/UserContext";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-import { MediaCard } from "@/components/MediaCard";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MediaType, TMDBMedia } from "@/types";
-import { getImageUrl } from "@/services/api";
 import { Footer } from "@/components/Footer";
-import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
+import { GenreFilters } from "@/components/discover/GenreFilters";
+import { MediaResultsGrid } from "@/components/discover/MediaResultsGrid";
+import { GenrePagination } from "@/components/discover/GenrePagination";
 
 interface Genre {
   id: number;
@@ -37,6 +31,7 @@ export default function Genres() {
   const [includeAdult, setIncludeAdult] = useState(false);
   const [yearFilter, setYearFilter] = useState<string>("");
   
+  // Fetch genres when media type changes
   useEffect(() => {
     const fetchGenres = async () => {
       try {
@@ -56,6 +51,7 @@ export default function Genres() {
     fetchGenres();
   }, [mediaType]);
   
+  // Fetch media by genre when filters change
   useEffect(() => {
     if (!selectedGenre) return;
     
@@ -102,6 +98,7 @@ export default function Genres() {
     fetchMediaByGenre();
   }, [selectedGenre, mediaType, page, sortBy, minRating, includeAdult, yearFilter]);
   
+  // Event handlers
   const handleGenreChange = (value: string) => {
     setSelectedGenre(value);
     setPage(1);
@@ -122,8 +119,20 @@ export default function Genres() {
     setPage(1);
   };
   
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 50 }, (_, i) => (currentYear - i).toString());
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
+  
+  const handleResetFilters = () => {
+    setMinRating(0);
+    setSortBy("popularity.desc");
+    setYearFilter("");
+    setIncludeAdult(false);
+    setPage(1);
+  };
+  
+  // Get the selected genre name for display
+  const selectedGenreName = genres.find(g => g.id.toString() === selectedGenre)?.name || "";
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -151,165 +160,43 @@ export default function Genres() {
         </Tabs>
         
         <div className="flex flex-col md:flex-row gap-6 mb-8">
+          {/* Filters sidebar */}
           <div className="w-full md:w-64">
-            <div className="space-y-6 sticky top-6">
-              <h2 className="text-xl font-semibold mb-4">Filters</h2>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Genre</label>
-                <Select value={selectedGenre || ""} onValueChange={handleGenreChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a genre" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {genres.map((genre) => (
-                      <SelectItem key={genre.id} value={genre.id.toString()}>
-                        {genre.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {selectedGenre && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Sort By</label>
-                    <Select value={sortBy} onValueChange={handleSortChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sort by" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="popularity.desc">Popularity (High to Low)</SelectItem>
-                        <SelectItem value="popularity.asc">Popularity (Low to High)</SelectItem>
-                        <SelectItem value="vote_average.desc">Rating (High to Low)</SelectItem>
-                        <SelectItem value="vote_average.asc">Rating (Low to High)</SelectItem>
-                        <SelectItem value="release_date.desc">Release Date (Newest)</SelectItem>
-                        <SelectItem value="release_date.asc">Release Date (Oldest)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Year</label>
-                    <Select value={yearFilter} onValueChange={handleYearChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Filter by year" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">All Years</SelectItem>
-                        {years.map(year => (
-                          <SelectItem key={year} value={year}>{year}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Minimum Rating: {minRating}</label>
-                    <Slider
-                      value={[minRating]}
-                      min={0}
-                      max={10}
-                      step={0.5}
-                      onValueChange={handleRatingChange}
-                      className="my-4"
-                    />
-                    <div className="flex justify-between text-xs">
-                      <span>0</span>
-                      <span>5</span>
-                      <span>10</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="adult-content"
-                      checked={includeAdult} 
-                      onCheckedChange={(checked) => {
-                        setIncludeAdult(checked === true);
-                        setPage(1);
-                      }}
-                    />
-                    <Label htmlFor="adult-content">Include Adult Content</Label>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <Button 
-                    onClick={() => {
-                      setMinRating(0);
-                      setSortBy("popularity.desc");
-                      setYearFilter("");
-                      setIncludeAdult(false);
-                      setPage(1);
-                    }}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    Reset Filters
-                  </Button>
-                </>
-              )}
-            </div>
+            <GenreFilters 
+              genres={genres}
+              selectedGenre={selectedGenre}
+              onGenreChange={handleGenreChange}
+              sortBy={sortBy}
+              onSortChange={handleSortChange}
+              minRating={minRating}
+              onRatingChange={handleRatingChange}
+              includeAdult={includeAdult}
+              onAdultContentChange={setIncludeAdult}
+              yearFilter={yearFilter}
+              onYearChange={handleYearChange}
+              onResetFilters={handleResetFilters}
+              mediaType={mediaType}
+            />
           </div>
           
+          {/* Results grid */}
           <div className="flex-1">
-            {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {[...Array(12)].map((_, i) => (
-                  <div key={i} className="h-[400px] animate-pulse bg-secondary rounded-lg"></div>
-                ))}
-              </div>
-            ) : !selectedGenre ? (
-              <div className="text-center py-20 border-2 border-dashed rounded-lg">
-                <p className="text-muted-foreground mb-4">Select a genre to see content</p>
-              </div>
-            ) : mediaByGenre.length === 0 ? (
-              <div className="text-center py-20 border-2 border-dashed rounded-lg">
-                <p className="text-muted-foreground">No results found for this genre with the current filters</p>
-              </div>
-            ) : (
-              <>
-                <h3 className="text-lg font-medium mb-4 flex justify-between items-center">
-                  <span>
-                    {genres.find(g => g.id.toString() === selectedGenre)?.name || "Results"}
-                    {yearFilter && ` (${yearFilter})`}
-                    {minRating > 0 && ` (${minRating}+ rating)`}
-                  </span>
-                  <Badge variant="outline">{mediaByGenre.length} results</Badge>
-                </h3>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {mediaByGenre.map((item) => (
-                    <div key={item.id} className="cursor-pointer" onClick={() => {}}>
-                      <MediaCard media={item} />
-                    </div>
-                  ))}
-                </div>
-                
-                <div className="flex justify-between items-center mt-8">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                  >
-                    Previous
-                  </Button>
-                  
-                  <span className="text-sm">
-                    Page {page} of {totalPages}
-                  </span>
-                  
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </>
+            <MediaResultsGrid 
+              loading={loading}
+              mediaByGenre={mediaByGenre}
+              selectedGenre={selectedGenre}
+              genreName={selectedGenreName}
+              yearFilter={yearFilter}
+              minRating={minRating}
+            />
+            
+            {/* Pagination */}
+            {!loading && selectedGenre && mediaByGenre.length > 0 && (
+              <GenrePagination 
+                currentPage={page}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+              />
             )}
           </div>
         </div>
