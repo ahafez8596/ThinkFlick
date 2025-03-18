@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/PageHeader";
@@ -9,6 +10,7 @@ import { MediaCard } from "@/components/MediaCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MediaType, TMDBMedia } from "@/types";
 import { getImageUrl } from "@/services/api";
+import { Footer } from "@/components/Footer";
 
 interface Genre {
   id: number;
