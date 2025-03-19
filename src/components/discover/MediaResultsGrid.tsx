@@ -20,6 +20,10 @@ export function MediaResultsGrid({
   yearFilter,
   minRating
 }: MediaResultsGridProps) {
+  const getTMDBUrl = (media: TMDBMedia) => {
+    return `https://www.themoviedb.org/${media.media_type}/${media.id}`;
+  };
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -51,7 +55,7 @@ export function MediaResultsGrid({
       <h3 className="text-lg font-medium mb-4 flex justify-between items-center">
         <span>
           {genreName || "Results"}
-          {yearFilter && ` (${yearFilter})`}
+          {yearFilter && yearFilter !== "all" && ` (${yearFilter})`}
           {minRating > 0 && ` (${minRating}+ rating)`}
         </span>
         <Badge variant="outline">{mediaByGenre.length} results</Badge>
@@ -59,9 +63,15 @@ export function MediaResultsGrid({
       
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {mediaByGenre.map((item) => (
-          <div key={item.id} className="cursor-pointer" onClick={() => {}}>
+          <a 
+            key={item.id} 
+            href={getTMDBUrl(item)} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="block transition-opacity hover:opacity-90"
+          >
             <MediaCard media={item} />
-          </div>
+          </a>
         ))}
       </div>
     </>

@@ -43,6 +43,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper function to fetch TMDB recommendations
 async function getTMDBRecommendations(
   mediaId: number,
   mediaType: MediaType,
@@ -56,6 +57,7 @@ async function getTMDBRecommendations(
     const pagesToFetch = Math.ceil(count / recommendationsPerPage);
     let allResults: TMDBMedia[] = [];
     
+    // First try to get recommendations
     for (let page = 1; page <= pagesToFetch && allResults.length < count; page++) {
       const response = await fetch(
         `https://api.themoviedb.org/3/${mediaType}/${mediaId}/recommendations?api_key=${TMDB_API_KEY}&language=en-US&page=${page}`
@@ -108,6 +110,7 @@ async function getTMDBRecommendations(
   }
 }
 
+// Helper function to get AI-generated recommendations
 async function getAIRecommendations(
   mediaId: number,
   mediaType: MediaType,
@@ -201,6 +204,7 @@ async function getAIRecommendations(
   }
 }
 
+// Main handler function
 serve(async (req) => {
   // Handle CORS
   if (req.method === "OPTIONS") {
