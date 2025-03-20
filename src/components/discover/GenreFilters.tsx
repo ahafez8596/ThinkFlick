@@ -93,7 +93,7 @@ export function GenreFilters({
                 <SelectValue placeholder="Filter by year" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Years</SelectItem>
+                <SelectItem value="all">All Years</SelectItem>
                 {years.map(year => (
                   <SelectItem key={year} value={year}>{year}</SelectItem>
                 ))}

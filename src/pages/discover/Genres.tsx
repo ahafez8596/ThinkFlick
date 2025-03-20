@@ -29,7 +29,7 @@ export default function Genres() {
   const [sortBy, setSortBy] = useState<string>("popularity.desc");
   const [minRating, setMinRating] = useState(0);
   const [includeAdult, setIncludeAdult] = useState(false);
-  const [yearFilter, setYearFilter] = useState<string>("");
+  const [yearFilter, setYearFilter] = useState<string>("all");
   
   // Fetch genres when media type changes
   useEffect(() => {
@@ -65,11 +65,15 @@ export default function Genres() {
           page: page.toString(),
           include_adult: includeAdult.toString(),
           sort_by: sortBy,
-          'vote_average.gte': minRating.toString()
         });
         
-        // Add year filter if provided
-        if (yearFilter) {
+        // Add minimum rating filter if set
+        if (minRating > 0) {
+          params.append('vote_average.gte', minRating.toString());
+        }
+        
+        // Add year filter if provided and not set to "all"
+        if (yearFilter && yearFilter !== "all") {
           if (mediaType === "movie") {
             params.append('primary_release_year', yearFilter);
           } else {
@@ -87,7 +91,7 @@ export default function Genres() {
           ...item,
           media_type: mediaType,
         })));
-        setTotalPages(Math.min(data.total_pages, 20));
+        setTotalPages(Math.min(data.total_pages || 1, 20));
       } catch (error) {
         console.error("Error fetching media by genre:", error);
       } finally {
@@ -141,6 +145,7 @@ export default function Genres() {
         onLogout={logout} 
         onProfile={() => navigate("/profile")}
         onLogin={() => navigate("/auth")}
+        onHome={() => navigate("/")}
       />
       
       <main className="flex-grow container mx-auto px-4 py-8">

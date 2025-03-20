@@ -19,7 +19,7 @@ export default function NewReleases() {
   const [sortBy, setSortBy] = useState<string>("popularity.desc");
   const [minRating, setMinRating] = useState(0);
   const [includeAdult, setIncludeAdult] = useState(false);
-  const [yearFilter, setYearFilter] = useState<string>("");
+  const [yearFilter, setYearFilter] = useState<string>("all");
   const [newReleases, setNewReleases] = useState<TMDBMedia[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -29,17 +29,15 @@ export default function NewReleases() {
     const fetchNewReleases = async () => {
       setLoading(true);
       try {
-        // Build the query parameters
+        // Base parameters that apply to all endpoints
         let params = new URLSearchParams({
           api_key: 'b795d65c7179a5635df1d1a73f963c6c',
           page: page.toString(),
           include_adult: includeAdult.toString(),
-          sort_by: sortBy,
-          'vote_average.gte': minRating.toString()
         });
         
-        // Add year filter if provided
-        if (yearFilter) {
+        // Add year filter if provided and not set to "all"
+        if (yearFilter && yearFilter !== "all") {
           if (mediaType === "movie") {
             params.append('primary_release_year', yearFilter);
           } else {
@@ -47,7 +45,20 @@ export default function NewReleases() {
           }
         }
         
+        // Add min rating filter if set
+        if (minRating > 0) {
+          params.append('vote_average.gte', minRating.toString());
+        }
+        
+        // For sorting the endpoint results (only for discover endpoints)
+        let discoverParams = new URLSearchParams(params);
+        if (sortBy) {
+          discoverParams.append('sort_by', sortBy);
+        }
+        
         let url;
+        let useDiscover = false;
+        
         if (mediaType === "movie") {
           if (timeWindow === "upcoming") {
             url = `https://api.themoviedb.org/3/movie/upcoming?${params}`;
@@ -56,6 +67,12 @@ export default function NewReleases() {
           } else {
             url = `https://api.themoviedb.org/3/movie/now_playing?${params}`;
           }
+          
+          // If we have specific filters, we need to use discover endpoint instead
+          if ((yearFilter && yearFilter !== "all") || minRating > 0 || sortBy !== "popularity.desc") {
+            url = `https://api.themoviedb.org/3/discover/movie?${discoverParams}`;
+            useDiscover = true;
+          }
         } else {
           if (timeWindow === "top_rated") {
             url = `https://api.themoviedb.org/3/tv/top_rated?${params}`;
@@ -63,6 +80,12 @@ export default function NewReleases() {
             url = `https://api.themoviedb.org/3/tv/airing_today?${params}`;
           } else {
             url = `https://api.themoviedb.org/3/tv/on_the_air?${params}`;
+          }
+          
+          // If we have specific filters, we need to use discover endpoint instead
+          if ((yearFilter && yearFilter !== "all") || minRating > 0 || sortBy !== "popularity.desc") {
+            url = `https://api.themoviedb.org/3/discover/tv?${discoverParams}`;
+            useDiscover = true;
           }
         }
         
@@ -74,7 +97,7 @@ export default function NewReleases() {
           ...item,
           media_type: mediaType,
         })));
-        setTotalPages(Math.min(data.total_pages, 20));
+        setTotalPages(Math.min(data.total_pages || 1, 20));
       } catch (error) {
         console.error("Error fetching new releases:", error);
       } finally {

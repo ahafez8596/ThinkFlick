@@ -15,17 +15,15 @@ interface PageHeaderProps {
 export function PageHeader({ user, onLogin, onLogout, onProfile, onHome }: PageHeaderProps) {
   return (
     <header className="w-full py-4 px-4 sm:px-6 flex justify-between items-center border-b">
-      <div className="flex items-center">
-        <h1 className="text-2xl font-bold mr-2">ThinkFlick</h1>
+      <div className="flex items-center gap-4">
+        <h1 className="text-2xl font-bold">ThinkFlick</h1>
         <span className="text-accent font-semibold">AI</span>
       </div>
       
       <div className="flex items-center space-x-2">
-        {onHome && (
-          <Button variant="ghost" size="icon" onClick={onHome} title="Home">
-            <Home className="h-5 w-5" />
-          </Button>
-        )}
+        <Button variant="ghost" size="icon" onClick={onHome} title="Home">
+          <Home className="h-5 w-5" />
+        </Button>
         {user ? (
           <>
             <Button variant="ghost" onClick={onProfile}>
