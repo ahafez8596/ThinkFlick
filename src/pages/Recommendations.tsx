@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useUser } from "@/contexts/UserContext";
 import { TMDBMedia } from "@/types";
 import { getRecommendations, getImageUrl } from "@/services/api";
-import { BookmarkIcon, HeartIcon, RefreshCwIcon, Share2Icon } from "lucide-react";
+import { BookmarkIcon, HeartIcon, RefreshCwIcon, Share2Icon, ExternalLink } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 const Recommendations = () => {
@@ -84,18 +84,25 @@ const Recommendations = () => {
     });
   };
 
+  const getTMDBUrl = (media: TMDBMedia) => {
+    const mediaType = media.media_type || user?.preferences?.mediaType || "movie";
+    return `https://www.themoviedb.org/${mediaType}/${media.id}`;
+  };
+
   const handleShare = (media: TMDBMedia) => {
+    const tmdbUrl = getTMDBUrl(media);
+    
     if (navigator.share) {
       navigator.share({
         title: `Check out ${media.title || media.name}`,
         text: media.overview,
-        url: window.location.href,
+        url: tmdbUrl,
       }).catch(err => console.error("Error sharing:", err));
     } else {
-      navigator.clipboard.writeText(window.location.href);
+      navigator.clipboard.writeText(tmdbUrl);
       toast({
         title: "Link Copied",
-        description: "Link has been copied to clipboard!",
+        description: "TMDB link has been copied to clipboard!",
       });
     }
   };
@@ -114,6 +121,7 @@ const Recommendations = () => {
         user={user} 
         onLogout={logout} 
         onProfile={() => navigate("/profile")}
+        onHome={() => navigate("/")}
       />
 
       <main className="flex-grow flex flex-col p-4 sm:p-6 md:p-8">
@@ -186,24 +194,37 @@ const Recommendations = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                   {recommendations.map((item) => (
                     <div key={item.id} className="relative group">
-                      <MediaCard media={item} />
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center rounded-md">
-                        <div className="flex space-x-2">
-                          <Button 
-                            variant="secondary" 
-                            size="icon"
-                            onClick={() => handleLike(item)}
-                          >
-                            <HeartIcon className="h-5 w-5" />
-                          </Button>
-                          <Button 
-                            variant="secondary" 
-                            size="icon" 
-                            onClick={() => handleShare(item)}
-                          >
-                            <Share2Icon className="h-5 w-5" />
-                          </Button>
-                        </div>
+                      <a 
+                        href={getTMDBUrl(item)} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="block transition-opacity hover:opacity-90"
+                      >
+                        <MediaCard media={item} />
+                      </a>
+                      <div className="absolute top-2 right-2 flex space-x-1">
+                        <Button 
+                          variant="secondary" 
+                          size="icon"
+                          className="h-8 w-8 opacity-90"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleLike(item);
+                          }}
+                        >
+                          <HeartIcon className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="secondary" 
+                          size="icon" 
+                          className="h-8 w-8 opacity-90"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleShare(item);
+                          }}
+                        >
+                          <Share2Icon className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}
